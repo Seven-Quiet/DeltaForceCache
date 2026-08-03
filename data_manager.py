@@ -182,6 +182,22 @@ def delete_gun_code(category_id, gun_id, code_id):
     return False
 
 
+def update_gun(category_id, gun_id, name=None, description=None):
+    """更新枪械信息"""
+    data = load_gun_data()
+    for cat in data["categories"]:
+        if cat["id"] == category_id:
+            for gun in cat["guns"]:
+                if gun["id"] == gun_id:
+                    if name is not None:
+                        gun["name"] = name
+                    if description is not None:
+                        gun["description"] = description
+                    save_gun_data(data)
+                    return True
+    return False
+
+
 def delete_gun(category_id, gun_id):
     """删除枪械"""
     data = load_gun_data()

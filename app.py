@@ -7,10 +7,12 @@ from auth import init_session, is_logged_in, login, logout, get_current_user, re
 from data_manager import (
     get_categories,
     get_guns_by_category,
+    get_gun_by_id,
     get_gun_codes,
     get_code_by_id,
     add_category,
     add_gun,
+    update_gun,
     add_gun_code,
     update_gun_code,
     delete_gun_code,
@@ -566,23 +568,58 @@ def render_category_page():
         )
         return
 
+    # 处理删除确认
+    delete_gun_id = st.session_state.get("delete_gun_id")
+
     # 枪械卡片列表
     for gun in guns:
         code_count = len(gun.get("codes", []))
+
+        # 标题栏：枪械名 + 编辑/删除
+        col_title, col_btn, col_act1, col_act2 = st.columns([4, 1.5, 1, 1])
+        with col_title:
+            st.markdown(f"**🔫 {gun['name']}**")
+        with col_btn:
+            if st.button("查看方案", key=f"gun_{gun['id']}", use_container_width=True):
+                st.session_state["current_page"] = "gun_detail"
+                st.session_state["selected_gun"] = gun["id"]
+                st.session_state["selected_code"] = None
+                st.session_state["delete_gun_id"] = None
+                st.rerun()
+        with col_act1:
+            if st.button("编辑", key=f"edit_gun_{gun['id']}", use_container_width=True):
+                st.session_state["edit_gun_id"] = gun["id"]
+                st.session_state["delete_gun_id"] = None
+                st.rerun()
+        with col_act2:
+            if st.button("删除", key=f"del_gun_{gun['id']}", use_container_width=True):
+                st.session_state["delete_gun_id"] = gun["id"]
+                st.session_state["edit_gun_id"] = None
+                st.rerun()
+
         st.markdown(
             f"""
         <div class="doc-card">
-            <div class="doc-title">🔫 {gun['name']}</div>
             <div class="doc-desc">{gun.get('description', '暂无描述')} · {code_count} 套改枪方案</div>
         </div>
         """,
             unsafe_allow_html=True,
         )
-        if st.button("查看改枪方案", key=f"gun_{gun['id']}", use_container_width=True):
-            st.session_state["current_page"] = "gun_detail"
-            st.session_state["selected_gun"] = gun["id"]
-            st.session_state["selected_code"] = None
-            st.rerun()
+
+        # 删除确认：显示在对应卡片下方
+        if delete_gun_id == gun["id"]:
+            st.warning(f"确定要删除枪械「{gun['name']}」吗？其下所有改枪方案也会一并删除！")
+            col_confirm, col_cancel = st.columns([1, 1])
+            with col_confirm:
+                if st.button("确认删除", key=f"confirm_del_gun_{gun['id']}", use_container_width=True):
+                    delete_gun(category_id, gun["id"])
+                    st.session_state["delete_gun_id"] = None
+                    st.success("删除成功")
+                    st.rerun()
+            with col_cancel:
+                if st.button("取消", key=f"cancel_del_gun_{gun['id']}", use_container_width=True):
+                    st.session_state["delete_gun_id"] = None
+                    st.rerun()
 
 
 def render_gun_detail_page():
@@ -944,6 +981,38 @@ def render_add_gun_modal():
             st.rerun()
 
 
+def render_edit_gun_modal():
+    """渲染编辑枪械弹窗"""
+    if st.session_state.get("edit_gun_id"):
+        category_id = st.session_state.get("selected_category")
+        gun_id = st.session_state.get("edit_gun_id")
+        gun = get_gun_by_id(category_id, gun_id)
+
+        if not gun:
+            st.session_state["edit_gun_id"] = None
+            st.rerun()
+            return
+
+        with st.form("edit_gun_form"):
+            st.markdown("### ✏️ 编辑枪械")
+            name = st.text_input("枪械名称", value=gun["name"])
+            description = st.text_area("描述", value=gun.get("description", ""))
+            submitted = st.form_submit_button("保存", use_container_width=True)
+
+            if submitted:
+                if name:
+                    update_gun(category_id, gun_id, name, description)
+                    st.session_state["edit_gun_id"] = None
+                    st.success("枪械更新成功！")
+                    st.rerun()
+                else:
+                    st.error("请输入枪械名称")
+
+        if st.button("取消", use_container_width=True, key="cancel_edit_gun"):
+            st.session_state["edit_gun_id"] = None
+            st.rerun()
+
+
 def render_add_code_modal():
     """渲染添加改枪码弹窗"""
     if st.session_state.get("show_add_code"):
@@ -1063,6 +1132,10 @@ def main():
     # 离开改枪方案列表页时，清除删除确认状态
     if st.session_state.get("current_page") != "gun_detail":
         st.session_state["delete_code_id"] = None
+    # 离开分类页时，清除枪械编辑/删除状态
+    if st.session_state.get("current_page") != "category":
+        st.session_state["delete_gun_id"] = None
+        st.session_state["edit_gun_id"] = None
 
     # 已登录，渲染主界面
     render_sidebar()
@@ -1086,6 +1159,7 @@ def main():
     # 渲染弹窗
     render_add_category_modal()
     render_add_gun_modal()
+    render_edit_gun_modal()
     render_add_code_modal()
     render_edit_code_modal()
     render_delete_confirm()
