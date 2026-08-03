@@ -8,11 +8,20 @@ import uuid
 from datetime import datetime
 
 GUN_CODES_FILE = os.path.join(os.path.dirname(__file__), "data", "gun_codes.json")
+GUN_CODES_TEMPLATE = os.path.join(os.path.dirname(__file__), "data", "gun_codes_template.json")
 LOG_FILE = os.path.join(os.path.dirname(__file__), "data", "operation_logs.json")
+
+
+def _ensure_data_file(filepath, template_path):
+    """确保数据文件存在，不存在则从模板复制"""
+    if not os.path.exists(filepath) and os.path.exists(template_path):
+        import shutil
+        shutil.copy(template_path, filepath)
 
 
 def load_gun_data():
     """加载枪械改枪码数据"""
+    _ensure_data_file(GUN_CODES_FILE, GUN_CODES_TEMPLATE)
     if not os.path.exists(GUN_CODES_FILE):
         return {"categories": []}
     with open(GUN_CODES_FILE, "r", encoding="utf-8") as f:

@@ -7,10 +7,19 @@ import os
 import streamlit as st
 
 USERS_FILE = os.path.join(os.path.dirname(__file__), "data", "users.json")
+USERS_TEMPLATE = os.path.join(os.path.dirname(__file__), "data", "users_template.json")
+
+
+def _ensure_data_file(filepath, template_path):
+    """确保数据文件存在，不存在则从模板复制"""
+    if not os.path.exists(filepath) and os.path.exists(template_path):
+        import shutil
+        shutil.copy(template_path, filepath)
 
 
 def load_users():
     """加载用户数据"""
+    _ensure_data_file(USERS_FILE, USERS_TEMPLATE)
     if not os.path.exists(USERS_FILE):
         return {}
     with open(USERS_FILE, "r", encoding="utf-8") as f:

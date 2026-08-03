@@ -2,3 +2,6 @@ __pycache__/
 .idea/
 *.pyc
 .DS_Store
+data/users.json
+data/gun_codes.json
+data/operation_logs.json
